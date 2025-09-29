@@ -3,7 +3,6 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { PhoneIcon, EnvelopeIcon, MapPinIcon } from "@heroicons/react/24/outline";
-
 import {
   UserGroupIcon,
   BeakerIcon,
@@ -59,9 +58,8 @@ export default function AboutPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-100 text-gray-800">
-      {/* Hero Section with Background Video + Glassmorphism */}
+      {/* Hero Section with Background Video */}
       <section className="relative h-[60vh] flex items-center justify-center text-center text-white overflow-hidden">
-        {/* Background Video */}
         <video
           autoPlay
           loop
@@ -73,8 +71,8 @@ export default function AboutPage() {
           <source src="/videos/lab-hero.mp4" type="video/mp4" />
         </video>
 
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-black/60"></div>
+        {/* Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-black/70"></div>
 
         {/* Hero Content */}
         <div className="relative z-10 px-6">
@@ -91,7 +89,6 @@ export default function AboutPage() {
               Accuracy. Care. Trust in Every Test.
             </p>
 
-            {/* Contact Us Button */}
             <div className="mt-6">
               <a
                 href="#contact"
@@ -105,7 +102,7 @@ export default function AboutPage() {
       </section>
 
       {/* Features Section */}
-      <section className="py-16 container mx-auto px-6 grid md:grid-cols-2 lg:grid-cols-4 gap-10">
+      <section className="py-20 container mx-auto px-6 grid md:grid-cols-2 lg:grid-cols-4 gap-10">
         {[
           {
             icon: <UserGroupIcon className="w-12 h-12 text-blue-600" />,
@@ -130,7 +127,7 @@ export default function AboutPage() {
         ].map((feature, i) => (
           <motion.div
             key={i}
-            className="flex flex-col items-center text-center bg-white p-6 rounded-2xl shadow-lg hover:shadow-2xl transition-shadow"
+            className="flex flex-col items-center text-center bg-white p-6 rounded-2xl shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-transform"
             variants={cardVariants}
             initial="hidden"
             whileInView="visible"
@@ -166,13 +163,13 @@ export default function AboutPage() {
                   whileInView="visible"
                   viewport={{ once: true, amount: 0.3 }}
                   custom={i}
-                  className="bg-gradient-to-b from-white to-blue-50 rounded-2xl shadow-lg p-6 text-center hover:-translate-y-2 hover:shadow-2xl transition transform cursor-pointer"
+                  className="bg-gradient-to-b from-white to-blue-50 rounded-2xl shadow-lg p-6 text-center hover:-translate-y-2 hover:shadow-xl transition-transform cursor-pointer"
                 >
                   <div className="relative w-24 h-24 mx-auto mb-4">
                     <img
                       src={member.img}
                       alt={member.name}
-                      className="w-24 h-24 rounded-full object-cover border-4 border-blue-500 shadow-md"
+                      className="w-24 h-24 rounded-full object-cover border-4 border-blue-500 shadow-md transform hover:scale-105 transition"
                     />
                   </div>
                   <h3 className="text-xl font-semibold text-gray-800">
@@ -201,33 +198,42 @@ export default function AboutPage() {
           Get in Touch
         </motion.h2>
 
-        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-          {/* Phone */}
-          <div className="bg-white rounded-2xl shadow-md p-6 flex flex-col items-center hover:shadow-xl hover:-translate-y-1 transition transform">
-            <div className="w-14 h-14 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 mb-4">
-              <PhoneIcon className="w-7 h-7" />
-            </div>
-            <h4 className="text-lg font-semibold text-gray-900">Phone</h4>
-            <p className="text-gray-600 mt-1">+91 98765 43210</p>
-          </div>
-
-          {/* Email */}
-          <div className="bg-white rounded-2xl shadow-md p-6 flex flex-col items-center hover:shadow-xl hover:-translate-y-1 transition transform">
-            <div className="w-14 h-14 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 mb-4">
-              <EnvelopeIcon className="w-7 h-7" />
-            </div>
-            <h4 className="text-lg font-semibold text-gray-900">Email</h4>
-            <p className="text-gray-600 mt-1">contact@impulselab.com</p>
-          </div>
-
-          {/* Address */}
-          <div className="bg-white rounded-2xl shadow-md p-6 flex flex-col items-center hover:shadow-xl hover:-translate-y-1 transition transform">
-            <div className="w-14 h-14 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 mb-4">
-              <MapPinIcon className="w-7 h-7" />
-            </div>
-            <h4 className="text-lg font-semibold text-gray-900">Address</h4>
-            <p className="text-gray-600 mt-1">123, Medical Street, Delhi</p>
-          </div>
+        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          {[
+            {
+              icon: <PhoneIcon className="w-7 h-7" />,
+              title: "Phone",
+              desc: "+91 98765 43210",
+            },
+            {
+              icon: <EnvelopeIcon className="w-7 h-7" />,
+              title: "Email",
+              desc: "contact@impulselab.com",
+            },
+            {
+              icon: <MapPinIcon className="w-7 h-7" />,
+              title: "Address",
+              desc: "123, Medical Street, Delhi",
+            },
+          ].map((item, i) => (
+            <motion.div
+              key={i}
+              className="bg-white/80 backdrop-blur-md rounded-2xl shadow-md p-8 flex flex-col items-center hover:shadow-xl hover:-translate-y-1 transition-transform"
+              variants={cardVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, amount: 0.3 }}
+              custom={i}
+            >
+              <div className="w-16 h-16 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 mb-4">
+                {item.icon}
+              </div>
+              <h4 className="text-lg font-semibold text-gray-900">
+                {item.title}
+              </h4>
+              <p className="text-gray-600 mt-2">{item.desc}</p>
+            </motion.div>
+          ))}
         </div>
       </section>
     </div>
