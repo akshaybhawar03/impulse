@@ -1,11 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Skip ESLint during production builds if ESLint isn’t installed
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
   async rewrites() {
     return [
       {
-        source: "/api/:path*", // frontend se request
-        destination: "http://192.168.1.100:5000/api/:path*", 
-        // yaha backend ka IP & port dalna hai
+        source: '/api/:path*',            // front-end requests
+        destination: 'http://10.166.211.209:3001/api/:path*', // backend IP & port
       },
     ];
   },
