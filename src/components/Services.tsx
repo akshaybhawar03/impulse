@@ -1,8 +1,15 @@
 "use client";
 
+import { JSX } from "react";
 import { FaVial, FaTint, FaXRay, FaHeartbeat, FaVirus } from "react-icons/fa";
 
-const services = [
+type Service = {
+  icon: JSX.Element;
+  title: string;
+  description: string;
+};
+
+const services: Service[] = [
   {
     icon: <FaVial size={40} className="text-blue-600" />,
     title: "Blood Test",
@@ -45,7 +52,9 @@ export default function Services() {
               className="bg-white shadow-md rounded-xl p-6 flex flex-col items-center hover:shadow-lg transition"
             >
               {service.icon}
-              <h3 className="text-xl font-semibold mt-4 mb-2">{service.title}</h3>
+              <h3 className="text-xl font-semibold mt-4 mb-2">
+                {service.title}
+              </h3>
               <p className="text-gray-600 mb-4">{service.description}</p>
               <a
                 href="#contact"
