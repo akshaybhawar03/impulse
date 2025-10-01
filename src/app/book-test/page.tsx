@@ -2,42 +2,15 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState } from "react";
-
-const serviceData: Record<
-  string,
-  {
-    title: string;
-    subTests: string[];
-  }
-> = {
-  "blood-test": {
-    title: "Blood Test",
-    subTests: [
-      "Complete Blood Count (CBC)",
-      "Liver Function Test (LFT)",
-      "Kidney Function Test (KFT)",
-      "Lipid Profile",
-      "Thyroid Function Test (TFT)",
-    ],
-  },
-  "urine-test": {
-    title: "Urine Test",
-    subTests: ["Routine Urine Examination", "Urine Culture", "Protein & Glucose Test"],
-  },
-  "stool-test": {
-    title: "Stool Test",
-    subTests: ["Stool Routine Test", "Stool Occult Blood Test", "Parasite Detection"],
-  },
-};
+import { serviceData } from "@/data/servicesData";
 
 export default function BookTestPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const selectedService = searchParams.get("service") || "";
+  const selectedSlug = searchParams.get("slug") || "";
 
-  const serviceEntry = Object.values(serviceData).find(
-    (s) => s.title === selectedService
-  );
+  const service = serviceData[selectedSlug];
 
   const [formData, setFormData] = useState({
     name: "",
@@ -68,12 +41,11 @@ export default function BookTestPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (serviceEntry && serviceEntry.subTests.length > 0 && formData.subTests.length === 0) {
+    if (service && service.subTests.length > 0 && formData.subTests.length === 0) {
       alert("⚠️ Please select at least one sub-test before booking.");
       return;
     }
 
-    // Redirect to success page with booking details
     router.push(
       `/booking-success?service=${encodeURIComponent(formData.service)}&date=${
         formData.date
@@ -83,11 +55,13 @@ export default function BookTestPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <section className="bg-gradient-to-r from-red-600 to-red-700 text-white py-12 text-center shadow-md">
+      {/* Header */}
+      <section className="bg-gradient-to-r from-teal-600 to-teal-700 text-white py-12 text-center shadow-md">
         <h1 className="text-4xl font-bold mb-2">Book Your Test</h1>
         <p className="text-lg opacity-90">Quick • Easy • Reliable</p>
       </section>
 
+      {/* Booking Form */}
       <section className="max-w-5xl mx-auto px-6 py-16">
         <form
           onSubmit={handleSubmit}
@@ -105,7 +79,7 @@ export default function BookTestPage() {
               value={formData.name}
               onChange={handleChange}
               required
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none"
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
             />
             <input
               type="email"
@@ -114,7 +88,7 @@ export default function BookTestPage() {
               value={formData.email}
               onChange={handleChange}
               required
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none"
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
             />
             <input
               type="tel"
@@ -123,7 +97,7 @@ export default function BookTestPage() {
               value={formData.phone}
               onChange={handleChange}
               required
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none"
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
             />
           </div>
 
@@ -139,24 +113,27 @@ export default function BookTestPage() {
               readOnly
               className="w-full p-3 border rounded-lg bg-gray-100 text-gray-700"
             />
-            {serviceEntry && (
+            {service && (
               <div>
                 <p className="mb-2 text-gray-700 font-medium">
                   Choose Sub-Tests <span className="text-red-500">*</span>
                 </p>
-                <div className="space-y-3 max-h-40 overflow-y-auto pr-2">
-                  {serviceEntry.subTests.map((test, i) => (
+                <div className="space-y-3 max-h-52 overflow-y-auto pr-2">
+                  {service.subTests.map((test, i) => (
                     <label
                       key={i}
-                      className="flex items-center gap-3 p-3 border rounded-lg bg-gray-50 hover:bg-gray-100 transition"
+                      className="flex justify-between items-center gap-3 p-3 border rounded-lg bg-gray-50 hover:bg-gray-100 transition"
                     >
-                      <input
-                        type="checkbox"
-                        checked={formData.subTests.includes(test)}
-                        onChange={() => handleSubTestToggle(test)}
-                        className="h-5 w-5 text-red-600"
-                      />
-                      <span className="text-gray-700">{test}</span>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={formData.subTests.includes(test.name)}
+                          onChange={() => handleSubTestToggle(test.name)}
+                          className="h-5 w-5 text-teal-600"
+                        />
+                        <span className="text-gray-700">{test.name}</span>
+                      </div>
+                      <span className="text-blue-600 font-medium">₹{test.price}</span>
                     </label>
                   ))}
                 </div>
@@ -168,7 +145,7 @@ export default function BookTestPage() {
               value={formData.date}
               onChange={handleChange}
               required
-              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none"
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-teal-500 focus:outline-none"
             />
           </div>
 
@@ -176,7 +153,7 @@ export default function BookTestPage() {
           <div className="md:col-span-2 text-center pt-6">
             <button
               type="submit"
-              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-10 py-4 rounded-xl text-lg font-semibold shadow-lg transition transform hover:scale-105"
+              className="bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white px-10 py-4 rounded-xl text-lg font-semibold shadow-lg transition transform hover:scale-105"
             >
               Confirm Booking
             </button>
