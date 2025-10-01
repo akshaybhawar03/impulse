@@ -1,6 +1,6 @@
 "use client";
 
-import { FaVial, FaTint, FaXRay, FaHeartbeat, FaVirus } from "react-icons/fa";
+import { FaVial, FaTint, FaHeartbeat, FaVirus, FaMicroscope } from "react-icons/fa";
 import { IconType } from "react-icons";
 
 type Service = {
@@ -12,28 +12,33 @@ type Service = {
 const services: Service[] = [
   {
     icon: FaVial,
-    title: "Blood Test",
-    description: "Comprehensive blood analysis with accurate reports.",
+    title: "Hematology",
+    description: "Haemogram, ESR, HB%, Blood Group, PT INR, Coombs Test and more.",
   },
   {
     icon: FaTint,
-    title: "Urine Test",
-    description: "Quick and reliable urine analysis for better diagnostics.",
+    title: "Biochemistry",
+    description: "Blood Sugar, Lipid Profile, LFT, Kidney Function, Electrolytes and more.",
   },
   {
-    icon: FaXRay,
-    title: "X-Ray",
-    description: "High-quality digital X-rays for accurate imaging results.",
+    icon: FaMicroscope,
+    title: "Clinical Pathology",
+    description: "Urine Routine, Stool Routine, Semen Analysis, Micro Albumin, Gram Stain etc.",
   },
   {
     icon: FaHeartbeat,
-    title: "ECG",
-    description: "Precise heart monitoring with advanced ECG technology.",
+    title: "Special & Hormone Tests",
+    description: "Thyroid Profile, Vitamin D & B12, Iron Studies, FSH, LH, Testosterone and more.",
   },
   {
     icon: FaVirus,
-    title: "Covid Test",
-    description: "Fast and trusted RT-PCR and Antigen Covid testing.",
+    title: "Infection & Serology",
+    description: "HIV, HBsAg, HCV, Dengue, Covid Profile, TORCH, Arthritis & Fever Profiles.",
+  },
+  {
+    icon: FaMicroscope,
+    title: "Culture & Histopathology",
+    description: "Blood, Urine, Sputum, Pus Cultures, FNAC, Cytology, Histopathology exams.",
   },
 ];
 
@@ -41,13 +46,11 @@ export default function Services() {
   return (
     <section id="services" className="py-16 bg-gray-100">
       <div className="max-w-7xl mx-auto px-6 text-center">
-        <h2 className="text-3xl font-bold text-gray-800 mb-10">
-          Our Services
-        </h2>
+        <h2 className="text-3xl font-bold text-gray-800 mb-10">Our Services</h2>
 
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
           {services.map((service, index) => {
-            const Icon = service.icon; // assign to component
+            const Icon = service.icon;
             return (
               <div
                 key={index}
