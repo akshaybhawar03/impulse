@@ -9,7 +9,7 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',            // front-end requests
-        destination: 'http://10.166.211.209:3001/api/:path*', // backend IP & port
+        destination: 'http://10.118.170.209:3001/api/:path*', // backend IP & port
       },
     ];
   },

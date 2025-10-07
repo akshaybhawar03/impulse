@@ -1,58 +1,57 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FaDownload, FaEye, FaSearch } from "react-icons/fa";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import QRCode from "react-qr-code";
 
-const dummyReports = [
-  {
-    id: "RPT001",
-    patient: "Tushar",
-    test: "Blood Sugar",
-    date: "2025-09-25",
-    status: "Completed",
-    file: "/reports/blood-sugar.pdf",
-    doctorNote: "Blood sugar is slightly high, consider regular exercise.",
-    data: [
-      { date: "Jan", value: 110 },
-      { date: "Feb", value: 125 },
-      { date: "Mar", value: 140 },
-      { date: "Apr", value: 118 },
-    ],
-  },
-  {
-    id: "RPT002",
-    patient: "Tushar",
-    test: "Cholesterol",
-    date: "2025-09-27",
-    status: "In Process",
-    file: "",
-    doctorNote: "",
-    data: [],
-  },
-];
-
 export default function ReportSection() {
+  const [reports, setReports] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [selectedReport, setSelectedReport] = useState<any>(null);
 
-  const filteredReports = dummyReports.filter(
-    (r) =>
-      r.patient.toLowerCase().includes(search.toLowerCase()) ||
-      r.test.toLowerCase().includes(search.toLowerCase()) ||
-      r.id.toLowerCase().includes(search.toLowerCase())
-  );
+  // 🔹 Fetch reports from backend
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        const res = await fetch("/api/reports", {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`, // token saved at login
+          },
+        });
+        if (!res.ok) throw new Error("Failed to fetch reports");
+        const data = await res.json();
+        setReports(data);
+      } catch (err) {
+        console.error("Error fetching reports:", err);
+      }
+    };
+    fetchReports();
+  }, []);
+
+  // 🔹 Search filter
+  const filteredReports = reports.filter((r) => {
+    const patient = r.booking?.user?.name || "";
+    const email = r.booking?.user?.email || "";
+    const test = r.booking?.service || "";
+    return (
+      patient.toLowerCase().includes(search.toLowerCase()) ||
+      email.toLowerCase().includes(search.toLowerCase()) ||
+      test.toLowerCase().includes(search.toLowerCase()) ||
+      r._id.toLowerCase().includes(search.toLowerCase())
+    );
+  });
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <h2 className="text-3xl font-bold mb-6 text-center">My Reports</h2>
 
-      {/* Search */}
+      {/* 🔍 Search */}
       <div className="flex items-center gap-3 mb-6">
         <input
           type="text"
-          placeholder="Search by name, test, or ID..."
+          placeholder="Search by patient, test, or ID..."
           className="w-full border rounded-lg px-4 py-2 focus:ring focus:ring-blue-400"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -60,37 +59,36 @@ export default function ReportSection() {
         <FaSearch className="text-gray-500" />
       </div>
 
-      {/* Reports Table */}
+      {/* 📑 Reports Table */}
       <div className="overflow-x-auto shadow-lg rounded-xl">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="bg-blue-600 text-white text-left">
               <th className="p-3">Report ID</th>
               <th className="p-3">Test</th>
+              <th className="p-3">Patient</th>
               <th className="p-3">Date</th>
               <th className="p-3">Status</th>
               <th className="p-3">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filteredReports.map((report) => (
-              <tr
-                key={report.id}
-                className="border-b hover:bg-gray-100 transition"
-              >
-                <td className="p-3">{report.id}</td>
-                <td className="p-3">{report.test}</td>
-                <td className="p-3">{report.date}</td>
+            {filteredReports.map((report: any) => (
+              <tr key={report._id} className="border-b hover:bg-gray-100 transition">
+                <td className="p-3">{report._id}</td>
+                <td className="p-3">{report.booking?.service || "N/A"}</td>
+                <td className="p-3">{report.booking?.user?.name || "Unknown"}</td>
+                <td className="p-3">
+                  {new Date(report.createdAt).toLocaleDateString()}
+                </td>
                 <td
                   className={`p-3 font-medium ${
                     report.status === "Completed"
                       ? "text-green-600"
-                      : report.status === "In Process"
-                      ? "text-orange-500"
-                      : "text-gray-500"
+                      : "text-orange-500"
                   }`}
                 >
-                  {report.status}
+                  {report.status || "Completed"}
                 </td>
                 <td className="p-3 flex gap-3">
                   <button
@@ -99,9 +97,9 @@ export default function ReportSection() {
                   >
                     <FaEye />
                   </button>
-                  {report.file && (
+                  {report.fileUrl && (
                     <a
-                      href={report.file}
+                      href={report.fileUrl}
                       download
                       className="text-green-600 hover:text-green-800"
                     >
@@ -115,30 +113,33 @@ export default function ReportSection() {
         </table>
       </div>
 
-      {/* Modal */}
+      {/* 📊 Modal */}
       {selectedReport && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white rounded-xl shadow-lg p-6 max-w-2xl w-full">
             <h3 className="text-xl font-bold mb-3">
-              {selectedReport.test} Report
+              {selectedReport.booking?.service || "Report"}
             </h3>
             <p>
-              <strong>Patient:</strong> {selectedReport.patient}
+              <strong>Patient:</strong>{" "}
+              {selectedReport.booking?.user?.name || "Unknown"}
             </p>
             <p>
-              <strong>Date:</strong> {selectedReport.date}
+              <strong>Email:</strong>{" "}
+              {selectedReport.booking?.user?.email || "N/A"}
             </p>
             <p>
-              <strong>Status:</strong> {selectedReport.status}
+              <strong>Date:</strong>{" "}
+              {new Date(selectedReport.createdAt).toLocaleDateString()}
             </p>
-            {selectedReport.doctorNote && (
+            {selectedReport.notes && (
               <p className="mt-2 p-2 bg-yellow-100 rounded">
-                <strong>Doctor’s Note:</strong> {selectedReport.doctorNote}
+                <strong>Doctor’s Note:</strong> {selectedReport.notes}
               </p>
             )}
 
-            {/* Graph Section */}
-            {selectedReport.data.length > 0 && (
+            {/* Graph */}
+            {selectedReport.data?.length > 0 && (
               <div className="mt-4">
                 <h4 className="font-semibold mb-2">Result Trend</h4>
                 <LineChart
@@ -164,7 +165,7 @@ export default function ReportSection() {
             {/* QR Code */}
             <div className="mt-4">
               <h4 className="font-semibold mb-2">Verify Report</h4>
-              <QRCode value={`https://yourlab.com/verify/${selectedReport.id}`} />
+              <QRCode value={`https://yourlab.com/verify/${selectedReport._id}`} />
             </div>
 
             {/* Buttons */}
@@ -175,9 +176,9 @@ export default function ReportSection() {
               >
                 Close
               </button>
-              {selectedReport.file && (
+              {selectedReport.fileUrl && (
                 <a
-                  href={selectedReport.file}
+                  href={selectedReport.fileUrl}
                   download
                   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                 >
