@@ -14,11 +14,11 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ✅ Automatically detect API URL (fallback to localhost)
+  // Automatically detect API URL (fallback to localhost)
   const API_URL =
     process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
-  // ✅ Handle manual registration
+  // Handle manual registration
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -35,6 +35,7 @@ export default function RegisterPage() {
 
       if (!res.ok) {
         setError(data.message || "Registration failed. Please try again.");
+        setLoading(false);
         return;
       }
 
@@ -48,7 +49,7 @@ export default function RegisterPage() {
     }
   };
 
-  // ✅ Handle Google & Facebook registration
+  // Handle Google & Facebook registration
   const handleSocialRegister = async (provider: "google" | "facebook") => {
     try {
       await signIn(provider, { callbackUrl: "/" });
@@ -71,7 +72,7 @@ export default function RegisterPage() {
           </div>
         )}
 
-        {/* ✅ Registration Form */}
+        {/* Registration Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <input
             type="text"
@@ -111,16 +112,17 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        {/* ✅ Divider */}
+        {/* Divider */}
         <div className="flex items-center my-6">
           <div className="flex-grow border-t"></div>
           <span className="mx-2 text-gray-500 text-sm">OR</span>
           <div className="flex-grow border-t"></div>
         </div>
 
-        {/* ✅ Social Login Buttons */}
+        {/* Social Login Buttons */}
         <div className="flex flex-col gap-3">
           <button
+            type="button"
             onClick={() => handleSocialRegister("google")}
             className="flex items-center justify-center gap-2 bg-red-500 text-white py-2 rounded-md hover:bg-red-600 transition"
           >
@@ -128,6 +130,7 @@ export default function RegisterPage() {
           </button>
 
           <button
+            type="button"
             onClick={() => handleSocialRegister("facebook")}
             className="flex items-center justify-center gap-2 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition"
           >
