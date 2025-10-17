@@ -1,25 +1,105 @@
 "use client";
 
+import Link from "next/link";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 
 export default function Home() {
+  const images = [
+    "/Hero/hero 1.jpg", 
+    "/Hero/hero 2.jpg", 
+    "/Hero/hero 3.jpg", 
+    "/Hero/hero 4.jpg", 
+  ];
+
+  const [active, setActive] = useState(0);
+  const [failed, setFailed] = useState<Record<number, boolean>>({});
+  const [overrideSrcs, setOverrideSrcs] = useState<string[]>(
+    images.map((s) => (s.includes(" ") ? s.replace(/ /g, "%20") : s))
+  );
+
+  useEffect(() => {
+    if (overrideSrcs.length <= 1) return; // no rotation if single image
+    const interval = setInterval(() => {
+      setActive((i) => {
+        const n = overrideSrcs.length;
+        for (let step = 1; step <= n; step++) {
+          const j = (i + step) % n;
+          if (!failed[j]) return j; // skip failed slides
+        }
+        return i; // all failed, stay put
+      });
+    }, 5000); // 5s per slide
+    return () => clearInterval(interval);
+  }, [overrideSrcs.length, failed]);
+
   return (
     <main className="bg-white text-gray-900">
       {/* Hero Section */}
-      <section className="bg-blue-600 text-white text-center py-20 px-6">
-        <h1 className="text-4xl md:text-6xl font-bold mb-4">
-          Your Health, Our Priority
-        </h1>
-        <p className="text-lg md:text-xl mb-6">
-          Accurate Diagnostics. Trusted Results. Fast Service.
-        </p>
-        <div className="flex justify-center gap-4">
-          <button className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold shadow hover:bg-gray-100">
-            Book a Test
-          </button>
-          <button className="bg-gray-800 text-white px-6 py-3 rounded-lg font-semibold shadow hover:bg-gray-700">
-            View Services
-          </button>
+      <section className="relative overflow-hidden text-white text-center py-24 px-6 min-h-[calc(100vh-64px)] md:min-h-[calc(100vh-64px)] flex items-center justify-center">
+        {/* Slideshow background (kept behind content but within section) */}
+        <div className="absolute inset-0 z-0">
+          {/* Default color/gradient background fallback */}
+          <div className="absolute inset-0 bg-gradient-to-br from-teal-600 via-sky-600 to-blue-700" />
+          {overrideSrcs.map((src, i) => (
+            <div
+              key={src}
+              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+                i === active ? "opacity-100" : "opacity-0"
+              }`}
+            >
+              {!failed[i] && (
+                <Image
+                  src={src}
+                  alt="Hero background"
+                  fill
+                  priority={i === 0}
+                  sizes="100vw"
+                  className="object-cover object-center"
+                  onLoadingComplete={() => {
+                    // if it loaded fine, ensure this index isn't marked failed
+                    setFailed((prev) => {
+                      if (!prev[i]) return prev;
+                      const next = { ...prev };
+                      delete next[i];
+                      return next;
+                    });
+                  }}
+                  onError={() => {
+                    console.error("Hero slide failed to load:", src);
+                    // Mark as failed and advance
+                    setFailed((prev) => ({ ...prev, [i]: true }));
+                    setActive((curr) => {
+                      if (curr !== i) return curr;
+                      const n = overrideSrcs.length;
+                      for (let step = 1; step <= n; step++) {
+                        const j = (curr + step) % n;
+                        if (!failed[j] && j !== i) return j;
+                      }
+                      return curr;
+                    });
+                  }}
+                />
+              )}
+            </div>
+          ))}
+          {/* Subtle overlay so the photo stays clear */}
+          <div className="absolute inset-0 bg-black/15" />
+        </div>
+        <div className="relative z-10">
+          <div className="inline-block bg-black/30 backdrop-blur-[2px] rounded-xl px-6 py-4 md:px-8 md:py-6">
+            <h1 className="text-4xl md:text-6xl font-bold mb-3">
+              Your Health, Our Priority
+            </h1>
+            <p className="text-base md:text-lg mb-5">
+              Accurate Diagnostics. Trusted Care.
+            </p>
+            <div className="flex justify-center">
+              <Link href="/services" className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold shadow hover:bg-gray-100">
+                Book a Test
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 

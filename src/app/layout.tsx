@@ -7,6 +7,11 @@ import Footer from "../components/Footer";
 export const metadata: Metadata = {
   title: "Impulse Pathology Lab",
   description: "Accurate Diagnostics. Trusted Results. Your health, our priority.",
+  icons: {
+    icon: "/icons/logo.png",
+    shortcut: "/icons/logo.png",
+    apple: "/icons/logo.png",
+  },
 };
 
 export default function RootLayout({
