@@ -98,19 +98,42 @@ export default function Home() {
             </div>
           ))}
         </div>
-        <div className="relative z-10">
-          <div className="inline-block bg-black/25 rounded-xl px-6 py-4 md:px-8 md:py-6">
+        <div className="relative z-10 w-full flex justify-center">
+          <div className="inline-block max-w-3xl text-center bg-black/25 rounded-xl px-6 py-6 md:px-10 md:py-8">
             <h1 className="text-4xl md:text-6xl font-bold mb-3">
               Your Health, Our Priority
             </h1>
             <p className="text-base md:text-lg mb-5">
               Accurate Diagnostics. Trusted Care.
             </p>
-            <div className="flex justify-center">
-              <Link href="/services" className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold shadow hover:bg-gray-100">
+            <div className="flex flex-wrap justify-center gap-3 md:gap-4">
+              <Link href="/services" className="px-6 py-3 rounded-full font-semibold shadow-sm bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:from-emerald-600 hover:to-green-600">
                 Book a Test
               </Link>
+              <Link href="/upload-prescription" className="px-6 py-3 rounded-full font-semibold border border-white/60 text-white/95 hover:bg-white/10">
+                Upload Prescription
+              </Link>
             </div>
+          </div>
+        </div>
+
+        {/* Features bar fixed at the bottom center of hero */}
+        <div className="absolute inset-x-0 bottom-6 z-10 px-4">
+          <div className="mx-auto max-w-5xl rounded-2xl border border-white/15 bg-white/10 backdrop-blur-sm px-6 py-3 md:px-8 md:py-4">
+            <ul className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4 text-white/95">
+              <li className="flex items-center justify-center gap-3">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300 text-lg">🛡️</span>
+                <span className="text-sm md:text-base font-medium">NABL Accredited</span>
+              </li>
+              <li className="flex items-center justify-center gap-3">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300 text-lg">🏠</span>
+                <span className="text-sm md:text-base font-medium">Home Sample Collection</span>
+              </li>
+              <li className="flex items-center justify-center gap-3">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300 text-lg">📄</span>
+                <span className="text-sm md:text-base font-medium">Online Reports in 24 Hours</span>
+              </li>
+            </ul>
           </div>
         </div>
       </section>
