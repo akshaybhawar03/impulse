@@ -6,7 +6,8 @@ import { useEffect, useState } from "react";
 
 export default function Home() {
   const images = [
-    "/Hero/hero 1.jpg", 
+    // Put hero 4 first so it appears immediately
+    "/Hero/hero 1.jpg",
     "/Hero/hero 2.jpg", 
     "/Hero/hero 3.jpg", 
     "/Hero/hero 4.jpg", 
@@ -55,6 +56,9 @@ export default function Home() {
                   fill
                   priority={i === 0}
                   sizes="100vw"
+                  quality={100}
+                  placeholder="empty"
+                  fetchPriority={i === 0 ? "high" : undefined}
                   className="object-cover object-center"
                   onLoadingComplete={() => {
                     // if it loaded fine, ensure this index isn't marked failed
@@ -67,6 +71,16 @@ export default function Home() {
                   }}
                   onError={() => {
                     console.error("Hero slide failed to load:", src);
+                    // Try uppercase extension fallback if available
+                    if (src.toLowerCase().endsWith(".jpg")) {
+                      const alt = src.replace(/\.jpg$/i, ".JPG");
+                      setOverrideSrcs((prev) => {
+                        const next = [...prev];
+                        next[i] = alt;
+                        return next;
+                      });
+                      return;
+                    }
                     // Mark as failed and advance
                     setFailed((prev) => ({ ...prev, [i]: true }));
                     setActive((curr) => {
@@ -83,11 +97,9 @@ export default function Home() {
               )}
             </div>
           ))}
-          {/* Subtle overlay so the photo stays clear */}
-          <div className="absolute inset-0 bg-black/15" />
         </div>
         <div className="relative z-10">
-          <div className="inline-block bg-black/30 backdrop-blur-[2px] rounded-xl px-6 py-4 md:px-8 md:py-6">
+          <div className="inline-block bg-black/25 rounded-xl px-6 py-4 md:px-8 md:py-6">
             <h1 className="text-4xl md:text-6xl font-bold mb-3">
               Your Health, Our Priority
             </h1>
