@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { offers } from "@/data/offers";
+import RevealOnScroll from "@/components/RevealOnScroll";
+import StatCounter from "@/components/StatCounter";
+import { branches } from "@/data/branches";
 
 export default function Home() {
   const images = [
@@ -19,6 +23,35 @@ export default function Home() {
     images.map((s) => (s.includes(" ") ? s.replace(/ /g, "%20") : s))
   );
 
+  // Real stats state (defaults act as placeholders)
+  const [todayTests, setTodayTests] = useState<number>(326);
+  const [monthSamples, setMonthSamples] = useState<number>(10215);
+  const [homeCollections, setHomeCollections] = useState<number>(58);
+
+  useEffect(() => {
+    const base = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "");
+    const useRewrite = String(process.env.NEXT_PUBLIC_USE_REWRITE || "").toLowerCase() === "true";
+    const target = base ? `${base}/stats/summary` : "/api/stats/summary";
+
+    let stop = false;
+    async function load() {
+      try {
+        const res = await fetch(target, { cache: "no-store" });
+        if (!res.ok) throw new Error("bad status");
+        const data = await res.json();
+        if (stop) return;
+        if (typeof data?.todayTests === "number") setTodayTests(data.todayTests);
+        if (typeof data?.monthSamples === "number") setMonthSamples(data.monthSamples);
+        if (typeof data?.homeCollections === "number") setHomeCollections(data.homeCollections);
+      } catch (e) {
+        // keep previous values on failure; no-op
+      }
+    }
+    load();
+    const id = setInterval(load, 30000); // poll every 30s
+    return () => { stop = true; clearInterval(id); };
+  }, []);
+
   useEffect(() => {
     if (overrideSrcs.length <= 1) return; // no rotation if single image
     const interval = setInterval(() => {
@@ -33,6 +66,72 @@ export default function Home() {
     }, 5000); // 5s per slide
     return () => clearInterval(interval);
   }, [overrideSrcs.length, failed]);
+
+  // Lab Finder state and helpers
+  type Nearby = { id: string; name: string; area: string; lat: number; lng: number; phone?: string; distKm: number };
+  const [nearby, setNearby] = useState<Nearby[] | null>(null);
+  const [locError, setLocError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const R = 6371; // km
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  // Build results: prefer geolocated nearby; else filter by search
+  const results = useMemo<Nearby[]>(() => {
+    if (nearby) return nearby;
+    const q = search.trim().toLowerCase();
+    const base: Nearby[] = branches.map((b) => ({
+      id: b.id,
+      name: b.name,
+      area: b.area,
+      lat: b.lat,
+      lng: b.lng,
+      phone: b.phone,
+      distKm: Number.NaN,
+    }));
+    if (!q) return base.slice(0, 6);
+    return base
+      .filter((b) => b.name.toLowerCase().includes(q) || b.area.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [nearby, search]);
+
+  function findNearest() {
+    setLocError(null);
+    if (!("geolocation" in navigator)) {
+      setLocError("Geolocation is not supported by this browser.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const scored = branches.map((b) => ({
+          id: b.id,
+          name: b.name,
+          area: b.area,
+          lat: b.lat,
+          lng: b.lng,
+          phone: b.phone,
+          distKm: haversineKm(latitude, longitude, b.lat, b.lng),
+        }));
+        scored.sort((a, b) => a.distKm - b.distKm);
+        setNearby(scored.slice(0, 3));
+      },
+      (err) => {
+        setLocError(err.message || "Unable to access location");
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  }
 
   return (
     <main className="bg-white text-gray-900">
@@ -138,6 +237,26 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Real-time Counters */}
+      <section className="bg-white dark:bg-gray-900 py-10 px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {/* Today */}
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+              <StatCounter label="Tests Conducted Today" value={326} suffix="" live />
+            </div>
+            {/* This Month */}
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+              <StatCounter label="Samples Processed This Month" value={10215} suffix="+" live />
+            </div>
+            {/* Home Collection */}
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+              <StatCounter label="Home Collections Today" value={58} suffix="" live />
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Why Choose Us */}
       <section className="bg-gray-100 py-16 px-6 text-center">
         <h2 className="text-3xl font-bold mb-10">Why Choose Us?</h2>
@@ -175,15 +294,166 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Contact */}
-      <section className="bg-blue-600 text-white py-16 px-6 text-center">
-        <h2 className="text-3xl font-bold mb-6">Get in Touch</h2>
-        <p className="mb-4">📍 123 Lab Street, City, Country</p>
-        <p className="mb-4">📞 +91 98765 43210</p>
-        <p className="mb-6">✉️ support@impulselab.com</p>
-        <button className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100">
-          Contact Us
-        </button>
+      {/* Special Offers */
+      }
+      <section className="py-16 px-6 bg-orange-50">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-3xl font-bold text-gray-900">Special Offers</h2>
+            <Link href="/services" className="text-emerald-700 font-medium hover:underline">View all</Link>
+          </div>
+
+          {/* Dynamic Discount Banner */}
+          <div className="mb-6 rounded-xl bg-emerald-600 text-white px-5 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="text-base font-semibold">Flat 20% off on Full Body Checkup till Oct 31.</div>
+            <Link href="/offers/full-body-checkup" className="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 px-4 py-2 rounded-lg">
+              View Offer →
+            </Link>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {offers.map((o, i) => (
+              <RevealOnScroll key={o.slug} delay={i * 80}>
+                <Link href={`/offers/${o.slug}`} className="relative rounded-2xl bg-white shadow-sm border border-gray-200 p-6 flex flex-col hover:shadow-md transition-transform hover:-translate-y-0.5">
+                  {o.slug === "full-body-checkup" && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-md shadow">20% OFF</span>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-gray-900">{o.title}</h3>
+                    <span className="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">{o.tag}</span>
+                  </div>
+                  <p className="text-gray-600 mt-1">{o.includes}</p>
+                  <p className="text-xs text-gray-500 mt-1">Valid: {o.start} – {o.end}</p>
+                  <div className="mt-4 flex items-baseline gap-3">
+                    <span className="text-2xl font-bold text-emerald-700">₹{o.price}</span>
+                    <span className="text-sm line-through text-gray-400">₹{o.mrp}</span>
+                  </div>
+                  <div className="mt-6">
+                    <span className="inline-flex items-center justify-center w-full px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold">
+                      View Details
+                    </span>
+                  </div>
+                </Link>
+              </RevealOnScroll>
+            ))}
+          </div>
+
+          <p className="text-xs text-gray-600 mt-4">Prices inclusive of sample collection and reporting. Offers valid this month only.</p>
+        </div>
+      </section>
+
+      {/* Lab Finder */}
+      <section className="py-14 px-6 bg-white">
+        <div className="max-w-5xl mx-auto">
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <h2 className="text-3xl font-bold text-gray-900">Find Nearest Lab</h2>
+            <div className="flex gap-2">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by area or branch"
+                className="w-64 max-w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <button
+                onClick={findNearest}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700"
+              >
+                Use My Location
+              </button>
+            </div>
+          </div>
+          {locError && (
+            <div className="mb-4 rounded-md bg-red-50 text-red-700 px-4 py-2">{locError}</div>
+          )}
+          <div className="grid sm:grid-cols-3 gap-4">
+            {results.map((b) => (
+              <div key={b.id} className="rounded-xl border border-gray-200 p-5 bg-white shadow-sm">
+                <div className="text-lg font-semibold text-gray-900">{b.name}</div>
+                <div className="text-sm text-gray-600">{b.area}</div>
+                {Number.isFinite(b.distKm) && (
+                  <div className="mt-1 text-sm text-emerald-700 font-medium">{b.distKm.toFixed(1)} km away</div>
+                )}
+                <div className="mt-3 overflow-hidden rounded-md">
+                  <iframe
+                    title={`${b.name} map`}
+                    src={`https://www.google.com/maps?q=${b.lat},${b.lng}&z=15&output=embed`}
+                    loading="lazy"
+                    className="w-full h-28 border-0"
+                  />
+                </div>
+                <div className="mt-4 flex items-center gap-2">
+                  <a href={`https://www.google.com/maps?q=${b.lat},${b.lng}`} target="_blank" className="inline-flex items-center px-3 py-2 rounded-md border border-gray-300 text-gray-800 hover:bg-gray-50">
+                    Open in Maps
+                  </a>
+                  {b.phone && (
+                    <a href={`tel:${b.phone}`} className="inline-flex items-center px-3 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700">
+                      Call
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          {!nearby && results.length === 0 && (
+            <p className="text-gray-600 mt-3">No branches match your search.</p>
+          )}
+        </div>
+      </section>
+
+      {/* Branches */}
+      <section className="bg-gradient-to-r from-emerald-600 to-green-600 text-white py-16 px-6">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-3xl font-bold mb-8 text-center">Our Branches</h2>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Main Branch */}
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6">
+              <h3 className="text-xl font-semibold tracking-wide mb-3">Main Branch</h3>
+              <div className="rounded-xl bg-white text-emerald-700 px-5 py-4 inline-block font-bold text-lg">
+                LAXMI CHOWK, HINJAWADI
+              </div>
+              <div className="mt-4 text-white/90">
+                <div className="inline-flex items-center gap-2 rounded-full bg-white/15 border border-white/20 px-3 py-1 text-sm">
+                  <span>⏰</span>
+                  <span>Mon–Sun: 7:00 AM – 10:00 PM</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Branch List */}
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6">
+              <h3 className="text-xl font-semibold tracking-wide mb-4">Other Branches</h3>
+              <ul className="space-y-3">
+                {[
+                  "KASPATEWASTI, WAKAD",
+                  "HINJAWADI, PH-3",
+                  "BHUMKAR CHOWK, WAKAD",
+                  "DATTA MANDIR ROAD, WAKAD",
+                ].map((b) => (
+                  <li key={b} className="flex items-center">
+                    <span className="mr-3 inline-block h-2 w-2 rounded-full bg-emerald-300"></span>
+                    <span className="inline-flex items-center rounded-full bg-white/15 border border-white/20 px-4 py-2 font-medium">
+                      {b}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-4 text-sm text-white/90">
+                ⏰ All branches: Mon–Sun, 7:00 AM – 10:00 PM
+              </p>
+            </div>
+          </div>
+
+          {/* Contact strip */}
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <a href="tel:+919309883798" className="inline-flex items-center gap-2 bg-white text-emerald-700 px-6 py-3 rounded-full font-semibold shadow hover:bg-white/90">
+              📞 Call: 9309883798
+            </a>
+            <Link href="/contact" className="inline-flex items-center gap-2 border border-white/70 text-white px-6 py-3 rounded-full font-semibold hover:bg-white/10">
+              ✉️ Contact Form
+            </Link>
+          </div>
+        </div>
       </section>
     </main>
   );

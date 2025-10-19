@@ -28,7 +28,9 @@ export default function UploadPrescriptionPage() {
       form.append("notes", notes);
       form.append("file", file);
 
-      const res = await fetch("/api/prescriptions", {
+      const base = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "");
+      const target = base ? `${base}/prescriptions` : "/api/prescriptions";
+      const res = await fetch(target, {
         method: "POST",
         body: form,
       });

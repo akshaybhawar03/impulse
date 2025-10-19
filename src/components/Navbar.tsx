@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
 import { serviceData } from "@/data/servicesData";
@@ -14,6 +14,12 @@ export default function Navbar() {
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const email = (user?.email || "");
+  const allowedDomain = (process.env.NEXT_PUBLIC_ADMIN_DOMAIN || "").toLowerCase();
+  const allowedEmails = useMemo(() => (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "").toLowerCase().split(/[,;\s]+/).filter(Boolean), []);
+  const userEmail = (typeof email === "string" ? email : "").toLowerCase();
+  const isAdmin = !!userEmail && ((allowedDomain && userEmail.endsWith(`@${allowedDomain}`)) || (allowedEmails.length > 0 && allowedEmails.includes(userEmail)));
+  const [profileOpen, setProfileOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -107,7 +113,6 @@ export default function Navbar() {
             <li><Link href="/reports">Reports</Link></li>
             <li><Link href="/about">About</Link></li>
             <li><Link href="/contact">Contact</Link></li>
-
             {!displayName ? (
               <>
                 <li>
@@ -117,17 +122,28 @@ export default function Navbar() {
                 </li>
               </>
             ) : (
-              <>
-                <li className="text-sm">Hello, <strong>{displayName}</strong></li>
-                <li>
-                  <button
-                    onClick={() => logout()}
-                    className="bg-red-500 px-3 py-1 rounded hover:bg-red-600 transition"
-                  >
-                    Logout
-                  </button>
-                </li>
-              </>
+              <li className="relative">
+                <button
+                  onClick={() => setProfileOpen((v) => !v)}
+                  className="px-3 py-1 rounded bg-white/20 hover:bg-white/30 text-white"
+                >
+                  {displayName}
+                </button>
+                {profileOpen && (
+                  <div className="absolute right-0 mt-2 w-48 rounded-md bg-white text-gray-800 shadow-lg overflow-hidden">
+                    <Link href="/account" className="block px-4 py-2 hover:bg-gray-100" onClick={() => setProfileOpen(false)}>Account</Link>
+                    {isAdmin && (
+                      <Link href="/admin/prescriptions" className="block px-4 py-2 hover:bg-gray-100" onClick={() => setProfileOpen(false)}>Admin</Link>
+                    )}
+                    <button
+                      onClick={() => { setProfileOpen(false); logout(); }}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </li>
             )}
           </ul>
         </nav>
@@ -194,6 +210,11 @@ export default function Navbar() {
               <Link href="/reports" onClick={() => setMobileOpen(false)}>Reports</Link>
               <Link href="/about" onClick={() => setMobileOpen(false)}>About</Link>
               <Link href="/contact" onClick={() => setMobileOpen(false)}>Contact</Link>
+              {isAdmin && (
+                <Link href="/admin/prescriptions" onClick={() => setMobileOpen(false)} className="px-3 py-2 rounded border border-white/70 text-white text-center">
+                  Admin
+                </Link>
+              )}
               {!displayName ? (
                 <Link href="/auth/login" className="bg-white text-blue-600 px-3 py-2 rounded text-center" onClick={() => setMobileOpen(false)}>
                   Login
