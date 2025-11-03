@@ -8,6 +8,7 @@ export default function StatCounter({
   suffix = "",
   durationMs = 1200,
   live = false,
+  animate = true,
 }: {
   label: string;
   value: number;
@@ -15,6 +16,7 @@ export default function StatCounter({
   suffix?: string;
   durationMs?: number;
   live?: boolean;
+  animate?: boolean;
 }) {
   const [display, setDisplay] = useState(0);
   const [visible, setVisible] = useState(false);
@@ -22,6 +24,12 @@ export default function StatCounter({
   const ref = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    if (!animate) {
+      // No animation: show value immediately
+      setVisible(true);
+      setDisplay(target);
+      return;
+    }
     const el = ref.current;
     if (!el) return;
     const obs = new IntersectionObserver((entries) => {
@@ -32,9 +40,14 @@ export default function StatCounter({
     }, { threshold: 0.2 });
     obs.observe(el);
     return () => obs.disconnect();
-  }, []);
+  }, [animate, target]);
 
   useEffect(() => {
+    if (!animate) {
+      // Keep fixed display equal to target
+      setDisplay(target);
+      return;
+    }
     if (!visible) return;
     const start = performance.now();
     const from = display;
@@ -49,15 +62,15 @@ export default function StatCounter({
     let req = requestAnimationFrame(run);
     return () => cancelAnimationFrame(req);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, target]);
+  }, [animate, visible, target]);
 
   useEffect(() => {
-    if (!live) return;
+    if (!animate || !live) return;
     const id = setInterval(() => {
       setDisplay((d) => d + Math.floor(Math.random() * 3));
     }, 5000);
     return () => clearInterval(id);
-  }, [live]);
+  }, [animate, live]);
 
   const formatted = useMemo(() => new Intl.NumberFormat().format(display), [display]);
 

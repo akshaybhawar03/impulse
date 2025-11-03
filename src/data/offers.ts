@@ -9,6 +9,8 @@ export type Offer = {
   end: string;   // display date
   description?: string;
   tests?: string[];
+  poster?: string; // path under public/
+  posterServices?: string[]; // services as printed on the poster
 };
 
 export const offers: Offer[] = [
@@ -23,29 +25,39 @@ export const offers: Offer[] = [
     end: "31 Oct 2025",
     description: "Comprehensive health screening covering key organ functions.",
     tests: ["CBC", "LFT", "KFT", "Lipid Profile", "Thyroid (TSH)", "Fasting Glucose"],
+    poster: "/posters/full-body-checkup.jpg",
+    posterServices: [
+      "CBC (Complete Blood Count)",
+      "LFT (Liver Function Test)",
+      "RFT (Kidney Function Test)",
+      "Lipid Profile",
+      "Thyroid Profile (TFT)",
+      "HBA1C (Glycated Hemoglobin)",
+      "Vitamin B12, Vitamin D3",
+      "Iron Studies",
+      "Electrolytes",
+      "Calcium",
+      "Urine R-M (Routine & Microscopy)",
+    ],
   },
   {
     slug: "diabetes-package",
     title: "Diabetes Package",
-    price: 699,
-    mrp: 1099,
-    includes: "HbA1c, FBS, PPBS",
+    price: 1199,
+    mrp: 2100,
+    includes: "Diabetic Profile • 33 parameters",
     tag: "Popular",
     start: "1 Oct 2025",
     end: "31 Oct 2025",
     description: "Monitoring and screening for diabetes and glucose control.",
     tests: ["HbA1c", "Fasting Blood Sugar (FBS)", "Post Prandial Blood Sugar (PPBS)"],
-  },
-  {
-    slug: "thyroid-profile",
-    title: "Thyroid Profile",
-    price: 499,
-    mrp: 899,
-    includes: "T3, T4, TSH",
-    tag: "Limited Time",
-    start: "1 Oct 2025",
-    end: "31 Oct 2025",
-    description: "Evaluate thyroid gland function and detect imbalances.",
-    tests: ["Total T3", "Total T4", "TSH"],
+    poster: "/posters/diabetes-package.jpg",
+    posterServices: [
+      "BSL Fasting - PP (2)",
+      "HBA1C (2)",
+      "Lipid Profile (7)",
+      "Kidney Profile (4)",
+      "Urine Routine (18)",
+    ],
   },
 ];

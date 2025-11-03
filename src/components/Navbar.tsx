@@ -40,7 +40,7 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 bg-gradient-to-r from-emerald-600 to-green-600 text-white shadow-md">
-      <div className="container mx-auto flex gap-4 items-center p-4">
+      <div className="container mx-auto flex gap-4 items-center p-3 sm:p-4">
         <h1 className="text-xl font-bold">
           <Link href="/" className="flex items-center gap-2">
             <Image src="/icons/logo.jpg" alt="Impulse Lab logo" width={50} height={50} priority className="rounded-md" />
@@ -49,8 +49,10 @@ export default function Navbar() {
         </h1>
         {/* Mobile menu button */}
         <button
-          className="ml-auto md:hidden inline-flex items-center justify-center rounded-md px-3 py-2 bg-white/20 hover:bg-white/30 text-white"
+          className="ml-auto md:hidden inline-flex items-center justify-center rounded-md px-4 py-3 min-h-[44px] bg-white/20 hover:bg-white/30 text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           aria-label="Toggle menu"
+          aria-controls="primary-mobile-menu"
+          aria-expanded={mobileOpen}
           onClick={() => setMobileOpen((v) => !v)}
         >
           {mobileOpen ? "Close" : "Menu"}
@@ -98,11 +100,11 @@ export default function Navbar() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search tests, health checkups..."
-                  className="w-80 lg:w-[28rem] px-4 py-2 rounded-md text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/60"
+                  className="w-72 lg:w-[28rem] px-4 py-2 rounded-md text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/60"
                 />
                 <button
                   type="submit"
-                  className="ml-2 px-4 py-2 rounded-md bg-white text-emerald-700 font-medium hover:bg-white/90"
+                  className="ml-2 px-4 py-2 rounded-md bg-white text-emerald-700 font-medium hover:bg-white/90 min-h-[44px]"
                 >
                   Search
                 </button>
@@ -110,13 +112,13 @@ export default function Navbar() {
             </li>
             <li><Link href="/">Home</Link></li>
             <li><Link href="/services">Our Services</Link></li>
-            <li><Link href="/reports">Reports</Link></li>
+            
             <li><Link href="/about">About</Link></li>
             <li><Link href="/contact">Contact</Link></li>
             {!displayName ? (
               <>
                 <li>
-                  <Link href="/auth/login" className="bg-white text-blue-600 px-3 py-1 rounded hover:bg-blue-100 transition">
+                  <Link href="/auth/login" className="bg-white text-blue-600 px-3 py-2 rounded hover:bg-blue-100 transition min-h-[44px] inline-flex items-center">
                     Login
                   </Link>
                 </li>
@@ -125,22 +127,43 @@ export default function Navbar() {
               <li className="relative">
                 <button
                   onClick={() => setProfileOpen((v) => !v)}
-                  className="px-3 py-1 rounded bg-white/20 hover:bg-white/30 text-white"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-700 to-green-700 text-white font-semibold uppercase tracking-wide shadow hover:from-emerald-600 hover:to-green-600 min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                  aria-haspopup="menu"
+                  aria-expanded={profileOpen}
                 >
-                  {displayName}
+                  <span className="truncate max-w-[10rem]">{displayName}</span>
+                  <span className="text-white/90">▾</span>
                 </button>
                 {profileOpen && (
-                  <div className="absolute right-0 mt-2 w-48 rounded-md bg-white text-gray-800 shadow-lg overflow-hidden">
-                    <Link href="/account" className="block px-4 py-2 hover:bg-gray-100" onClick={() => setProfileOpen(false)}>Account</Link>
-                    {isAdmin && (
-                      <Link href="/admin/prescriptions" className="block px-4 py-2 hover:bg-gray-100" onClick={() => setProfileOpen(false)}>Admin</Link>
-                    )}
-                    <button
-                      onClick={() => { setProfileOpen(false); logout(); }}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-100"
-                    >
-                      Logout
-                    </button>
+                  <div className="absolute right-0 mt-2 w-72 rounded-xl bg-white text-gray-800 shadow-xl border border-emerald-100 overflow-hidden" role="menu">
+                    <div className="p-4 bg-emerald-50 border-b border-emerald-100">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-emerald-600 text-white flex items-center justify-center text-lg">👤</div>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-emerald-900 truncate">{displayName}</div>
+                          <div className="text-xs text-emerald-700/80 truncate">Signed in</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-2">
+                      <Link href="/upload-prescription" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>🧾 <span>My Prescriptions</span></Link>
+                      <Link href="/services" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>🗓️ <span>My Booking</span></Link>
+                      <Link href="/account?tab=reports" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>📁 <span>My Report</span></Link>
+                      <Link href="/account?tab=address" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>📍 <span>My Address</span></Link>
+                      <Link href="/account?tab=membership" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>💳 <span>My Membership Cards</span></Link>
+                      <Link href="/account?tab=family" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>👥 <span>My Family Members</span></Link>
+                      <Link href="/account" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>👤 <span>My Profile</span></Link>
+                      <Link href="/account?tab=notifications" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>🔔 <span>My Notification</span></Link>
+                      {isAdmin && (
+                        <Link href="/admin/prescriptions" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>🛡️ <span>Admin</span></Link>
+                      )}
+                      <button
+                        onClick={() => { setProfileOpen(false); logout(); }}
+                        className="mt-1 w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100 text-left"
+                      >
+                        🚪 <span>Logout</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </li>
@@ -151,7 +174,7 @@ export default function Navbar() {
 
       {/* Mobile dropdown */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-white/20 bg-gradient-to-r from-emerald-600 to-green-600">
+        <div id="primary-mobile-menu" className="md:hidden border-t border-white/20 bg-gradient-to-r from-emerald-600 to-green-600">
           <div className="container mx-auto p-4 flex flex-col gap-4">
             <form
               onSubmit={(e) => {
@@ -198,31 +221,31 @@ export default function Navbar() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search tests, health checkups..."
-                className="flex-1 px-4 py-2 rounded-md text-gray-900 placeholder-gray-600 focus:outline-none"
+                className="flex-1 px-4 py-3 rounded-md text-gray-900 placeholder-gray-600 focus:outline-none"
               />
-              <button type="submit" className="ml-2 px-4 py-2 rounded-md bg-white text-emerald-700">
+              <button type="submit" className="ml-2 px-4 py-3 rounded-md bg-white text-emerald-700 min-h-[44px]">
                 Search
               </button>
             </form>
             <div className="flex flex-col gap-3">
-              <Link href="/" onClick={() => setMobileOpen(false)}>Home</Link>
-              <Link href="/services" onClick={() => setMobileOpen(false)}>Our Services</Link>
-              <Link href="/reports" onClick={() => setMobileOpen(false)}>Reports</Link>
-              <Link href="/about" onClick={() => setMobileOpen(false)}>About</Link>
-              <Link href="/contact" onClick={() => setMobileOpen(false)}>Contact</Link>
+              <Link href="/" onClick={() => setMobileOpen(false)} className="py-2">Home</Link>
+              <Link href="/services" onClick={() => setMobileOpen(false)} className="py-2">Our Services</Link>
+              
+              <Link href="/about" onClick={() => setMobileOpen(false)} className="py-2">About</Link>
+              <Link href="/contact" onClick={() => setMobileOpen(false)} className="py-2">Contact</Link>
               {isAdmin && (
-                <Link href="/admin/prescriptions" onClick={() => setMobileOpen(false)} className="px-3 py-2 rounded border border-white/70 text-white text-center">
+                <Link href="/admin/prescriptions" onClick={() => setMobileOpen(false)} className="px-3 py-3 rounded border border-white/70 text-white text-center">
                   Admin
                 </Link>
               )}
               {!displayName ? (
-                <Link href="/auth/login" className="bg-white text-blue-600 px-3 py-2 rounded text-center" onClick={() => setMobileOpen(false)}>
+                <Link href="/auth/login" className="bg-white text-blue-600 px-3 py-3 rounded text-center" onClick={() => setMobileOpen(false)}>
                   Login
                 </Link>
               ) : (
                 <button
                   onClick={() => { logout(); setMobileOpen(false); }}
-                  className="bg-red-500 px-3 py-2 rounded text-white"
+                  className="bg-red-500 px-3 py-3 rounded text-white"
                 >
                   Logout
                 </button>

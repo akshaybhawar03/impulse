@@ -1,3 +1,19 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom utilities */
+@layer utilities {
+  /* Hide scrollbar utility */
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari */
+  }
+  /* Enable momentum scrolling on iOS */
+  .touch-scrolling {
+    -webkit-overflow-scrolling: touch;
+  }
+}

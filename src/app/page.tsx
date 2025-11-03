@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { offers } from "@/data/offers";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import StatCounter from "@/components/StatCounter";
 import { branches } from "@/data/branches";
+import { popularTests, testsBySlug } from "@/data/tests";
 
 export default function Home() {
   const images = [
@@ -24,32 +25,11 @@ export default function Home() {
   );
 
   // Real stats state (defaults act as placeholders)
-  const [todayTests, setTodayTests] = useState<number>(326);
-  const [monthSamples, setMonthSamples] = useState<number>(10215);
-  const [homeCollections, setHomeCollections] = useState<number>(58);
+  const [totalPatients, setTotalPatients] = useState<number>(100000);
+  const [monthSamples, setMonthSamples] = useState<number>(10000);
 
   useEffect(() => {
-    const base = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "");
-    const useRewrite = String(process.env.NEXT_PUBLIC_USE_REWRITE || "").toLowerCase() === "true";
-    const target = base ? `${base}/stats/summary` : "/api/stats/summary";
-
-    let stop = false;
-    async function load() {
-      try {
-        const res = await fetch(target, { cache: "no-store" });
-        if (!res.ok) throw new Error("bad status");
-        const data = await res.json();
-        if (stop) return;
-        if (typeof data?.todayTests === "number") setTodayTests(data.todayTests);
-        if (typeof data?.monthSamples === "number") setMonthSamples(data.monthSamples);
-        if (typeof data?.homeCollections === "number") setHomeCollections(data.homeCollections);
-      } catch (e) {
-        // keep previous values on failure; no-op
-      }
-    }
-    load();
-    const id = setInterval(load, 30000); // poll every 30s
-    return () => { stop = true; clearInterval(id); };
+    // Fixed display requested: do not fetch or update values.
   }, []);
 
   useEffect(() => {
@@ -72,6 +52,140 @@ export default function Home() {
   const [nearby, setNearby] = useState<Nearby[] | null>(null);
   const [locError, setLocError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [filterCity, setFilterCity] = useState("");
+  const [showMapView, setShowMapView] = useState(false);
+  const [activeLabId, setActiveLabId] = useState<string | null>(null);
+  const testimonials = [
+    { name: "Amit Patil", city: "Pune", rating: 5, text: "Excellent service! Got my reports within hours.", avatar: undefined },
+    { name: "Priya Sharma", city: "Nashik", rating: 5, text: "The staff is very professional and caring.", avatar: undefined },
+    { name: "Rahul Mehta", city: "Pimpri", rating: 5, text: "Booking a test online was so easy and quick.", avatar: undefined },
+    { name: "Sneha Joshi", city: "Wakad", rating: 5, text: "Home collection was punctual and hassle-free.", avatar: undefined },
+    { name: "Vikram Rao", city: "Hinjawadi", rating: 5, text: "Clean lab and very professional staff.", avatar: undefined },
+    { name: "Neha Desai", city: "Baner", rating: 5, text: "Reports were easy to access online.", avatar: undefined },
+  ];
+  const testiRef = useRef<HTMLDivElement | null>(null);
+
+  // Testimonials: multi-card horizontal carousel with 3s autoplay and manual scroll
+  useEffect(() => {
+    const wrap = testiRef.current;
+    if (!wrap) return;
+    const el = wrap.querySelector('[data-track]') as HTMLDivElement | null;
+    if (!el) return;
+    const prefersReduce = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduce) return;
+
+    const segments = 3; // render list 3x for seamless wrap
+    let timer: ReturnType<typeof setInterval> | null = null;
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const hasOverflow = () => el.scrollWidth / segments > el.clientWidth + 1;
+    const getGap = () => {
+      const cs = window.getComputedStyle(el);
+      const g = parseFloat((cs as any).columnGap || cs.gap || '0');
+      return Number.isFinite(g) ? g : 0;
+    };
+    const getStep = () => {
+      const first = el.querySelector('[data-tcard]') as HTMLElement | null;
+      const w = first ? first.getBoundingClientRect().width : 320;
+      return w + getGap();
+    };
+    const step = () => {
+      if (!hasOverflow()) return;
+      const segment = el.scrollWidth / segments;
+      if (el.scrollLeft >= segment - 1) el.scrollTo({ left: 0, behavior: 'auto' });
+      el.scrollBy({ left: getStep(), behavior: 'smooth' });
+    };
+    const start = () => { if (!timer && hasOverflow()) timer = setInterval(step, 3000); };
+    const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+    const scheduleResume = () => { if (idleTimer) clearTimeout(idleTimer); idleTimer = setTimeout(() => start(), 1500); };
+    const onInteract = () => { stop(); scheduleResume(); };
+
+    el.addEventListener('pointerdown', onInteract);
+    el.addEventListener('wheel', onInteract as any, { passive: true } as any);
+    el.addEventListener('touchstart', onInteract as any, { passive: true } as any);
+
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => { if (hasOverflow()) start(); else stop(); }) : null;
+    ro?.observe(el);
+    if (hasOverflow()) start();
+    const onResize = () => { if (hasOverflow()) start(); else stop(); };
+    window.addEventListener('resize', onResize);
+
+    return () => {
+      stop();
+      if (idleTimer) clearTimeout(idleTimer);
+      ro?.disconnect();
+      el.removeEventListener('pointerdown', onInteract);
+      el.removeEventListener('wheel', onInteract as any);
+      el.removeEventListener('touchstart', onInteract as any);
+      window.removeEventListener('resize', onResize);
+    };
+  }, []);
+  // Popular tests (hardcoded)
+  type PopularCard = { title: string; price?: number; obs?: number; hours?: number; imageUrl?: string; slug: string };
+  const popularScrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Step-by-step auto-scroll: every 3s scroll by one card, allow manual scroll
+  useEffect(() => {
+    const el = popularScrollRef.current;
+    if (!el) return;
+    const prefersReduce =
+      typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReduce) return; // respect user's preference
+
+    const segments = 3; // we render list 3x
+    let timer: ReturnType<typeof setInterval> | null = null;
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const hasOverflow = () => el.scrollWidth / segments > el.clientWidth + 1;
+    const getGap = () => {
+      const cs = window.getComputedStyle(el);
+      const g = parseFloat((cs as any).columnGap || cs.gap || '0');
+      return Number.isFinite(g) ? g : 0;
+    };
+    const getStep = () => {
+      const first = el.querySelector('[data-card]') as HTMLElement | null;
+      const w = first ? first.getBoundingClientRect().width : 280;
+      return w + getGap();
+    };
+    const step = () => {
+      if (!hasOverflow()) return;
+      const segment = el.scrollWidth / segments;
+      if (el.scrollLeft >= segment - 1) {
+        el.scrollTo({ left: 0, behavior: 'auto' });
+      }
+      el.scrollBy({ left: getStep(), behavior: 'smooth' });
+    };
+
+    const start = () => { if (!timer && hasOverflow()) { timer = setInterval(step, 3000); } };
+    const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+    const scheduleResume = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => start(), 1500);
+    };
+    const onInteract = () => { stop(); scheduleResume(); };
+
+    el.addEventListener('pointerdown', onInteract);
+    el.addEventListener('wheel', onInteract, { passive: true } as any);
+    el.addEventListener('touchstart', onInteract, { passive: true } as any);
+
+    const ro = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => { if (hasOverflow()) start(); else stop(); })
+      : null;
+    ro?.observe(el);
+    if (hasOverflow()) start();
+    const onResize = () => { if (hasOverflow()) start(); else stop(); };
+    window.addEventListener('resize', onResize);
+
+    return () => {
+      stop();
+      if (idleTimer) clearTimeout(idleTimer);
+      ro?.disconnect();
+      el.removeEventListener('pointerdown', onInteract);
+      el.removeEventListener('wheel', onInteract as any);
+      el.removeEventListener('touchstart', onInteract as any);
+      window.removeEventListener('resize', onResize);
+    };
+  }, []);
 
   function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
     const R = 6371; // km
@@ -237,65 +351,149 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Real-time Counters */}
+      
+
+      {/* Key Counters */}
       <section className="bg-white dark:bg-gray-900 py-10 px-6">
         <div className="max-w-5xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {/* Today */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {/* Total Patients */}
             <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
-              <StatCounter label="Tests Conducted Today" value={326} suffix="" live />
+              <StatCounter label="Total Patients" value={totalPatients} suffix="+" animate={false} />
             </div>
             {/* This Month */}
             <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
-              <StatCounter label="Samples Processed This Month" value={10215} suffix="+" live />
-            </div>
-            {/* Home Collection */}
-            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
-              <StatCounter label="Home Collections Today" value={58} suffix="" live />
+              <StatCounter label="Samples Processed This Month" value={monthSamples} suffix="+" animate={false} />
             </div>
           </div>
         </div>
       </section>
 
       {/* Why Choose Us */}
-      <section className="bg-gray-100 py-16 px-6 text-center">
-        <h2 className="text-3xl font-bold mb-10">Why Choose Us?</h2>
-        <div className="grid md:grid-cols-4 gap-8">
-          {[
-            { title: "Advanced Equipment", icon: "🔬" },
-            { title: "Fast Results", icon: "⏱️" },
-            { title: "Certified Experts", icon: "👨‍⚕️" },
-            { title: "Affordable Packages", icon: "✅" },
-          ].map((point, i) => (
-            <div key={i} className="p-6 bg-white rounded-lg shadow">
-              <div className="text-4xl mb-3">{point.icon}</div>
-              <h3 className="text-lg font-semibold">{point.title}</h3>
-            </div>
-          ))}
+      <section className="py-16 px-6 bg-gradient-to-b from-white via-emerald-50 to-blue-50">
+        <div className="max-w-6xl mx-auto text-center">
+          <h2 className="text-3xl font-extrabold text-gray-900">Why Choose Us?</h2>
+          <div className="w-16 h-1 bg-emerald-600/80 rounded-full mx-auto mt-2" />
+          <p className="text-gray-600 mt-3">Delivering Accuracy, Care, and Trust — Every Step of the Way.</p>
+
+          {(() => {
+            const features = [
+              {
+                title: "Advanced Equipment",
+                subtitle: "State-of-the-art machines for accurate testing",
+                icon: (
+                  <svg viewBox="0 0 24 24" className="h-7 w-7 text-emerald-700 transition-transform group-hover:-translate-y-0.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M9 3v4l-5 8a4 4 0 0 0 3.4 6h9.2A4 4 0 0 0 20 15l-5-8V3"/>
+                    <path d="M10 7h4"/>
+                  </svg>
+                ),
+              },
+              {
+                title: "Fast Results",
+                subtitle: "Quick turnaround without compromising accuracy",
+                icon: (
+                  <svg viewBox="0 0 24 24" className="h-7 w-7 text-emerald-700 transition-transform group-hover:rotate-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M12 3a9 9 0 1 0 9 9"/>
+                    <path d="M12 7v5l3 2"/>
+                  </svg>
+                ),
+              },
+              {
+                title: "Certified Experts",
+                subtitle: "Skilled and qualified pathologists at your service",
+                icon: (
+                  <svg viewBox="0 0 24 24" className="h-7 w-7 text-emerald-700 transition-transform group-hover:-translate-y-0.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Z"/>
+                    <path d="M3 21a9 9 0 0 1 18 0"/>
+                    <path d="M15.5 10.5l1.5 1.5 2.5-2.5"/>
+                  </svg>
+                ),
+              },
+              {
+                title: "Affordable Packages",
+                subtitle: "Comprehensive health checkups at fair prices",
+                icon: (
+                  <svg viewBox="0 0 24 24" className="h-7 w-7 text-emerald-700 transition-transform group-hover:scale-105" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M12 1v22"/>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/>
+                  </svg>
+                ),
+              },
+            ];
+            return (
+              <div className="mt-10 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                {features.map((f, i) => (
+                  <RevealOnScroll key={f.title} delay={i * 80}>
+                    <div className="group h-full p-5 sm:p-6 rounded-2xl bg-white border border-emerald-100 shadow-sm hover:shadow-lg transition-all hover:-translate-y-0.5">
+                      <div className="mx-auto mb-4 inline-flex items-center justify-center h-12 w-12 rounded-full bg-white ring-2 ring-emerald-200 shadow-sm">
+                        {f.icon}
+                      </div>
+                      <h3 className="text-base font-semibold text-gray-900">{f.title}</h3>
+                      <p className="text-xs text-gray-600 mt-1 leading-relaxed">{f.subtitle}</p>
+                    </div>
+                  </RevealOnScroll>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       </section>
 
       {/* Testimonials */}
-      <section className="py-16 px-6 max-w-4xl mx-auto text-center">
-        <h2 className="text-3xl font-bold mb-10">What Our Patients Say</h2>
-        <div className="space-y-6">
-          {[
-            "Excellent service! Got my reports within hours.",
-            "The staff is very professional and caring.",
-            "Booking a test online was so easy and quick.",
-          ].map((feedback, i) => (
-            <p
-              key={i}
-              className="p-6 bg-blue-50 border-l-4 border-blue-600 rounded-lg text-gray-700 italic"
-            >
-              “{feedback}”
-            </p>
-          ))}
+      <section className="py-16 px-6 bg-gradient-to-b from-emerald-50 via-white to-blue-50">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-2">What Our Patients Say ❤️</h2>
+          <p className="text-center text-gray-600 mb-8">Hear from our happy patients who trust Impulse Pathology for their health and accurate results.</p>
+          <div ref={testiRef} className="relative">
+            <div data-track className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory md:snap-none scroll-smooth p-1 -mx-4 px-4">
+              {[...testimonials, ...testimonials, ...testimonials].map((t, i) => (
+                <RevealOnScroll key={`${t.name}-${i}`} delay={(i%6)*60}>
+                  <div data-tcard className="snap-start shrink-0 w-[280px] sm:w-[360px] md:w-[380px]">
+                    <div className="group h-full p-5 sm:p-6 rounded-2xl border bg-white shadow-sm hover:shadow-lg transition-all hover:-translate-y-0.5 border-emerald-100 animate-float-soft">
+                      <div className="flex items-start gap-4">
+                        {t.avatar ? (
+                          <div className="relative">
+                            <Image src={t.avatar} alt={t.name} width={40} height={40} className="h-10 w-10 rounded-full object-cover ring-2 ring-emerald-200" />
+                            <span className="absolute -bottom-1 -right-1 text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded-full">Verified</span>
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <div className="h-10 w-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold shadow-sm ring-2 ring-emerald-200">
+                              {t.name.charAt(0)}
+                            </div>
+                            <span className="absolute -bottom-1 -right-1 text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded-full">Verified</span>
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-gray-900 truncate">{t.name}</div>
+                          <div className="text-xs text-gray-500">{t.city}</div>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex items-center gap-1" aria-label={`${t.rating} star rating`}>
+                        {Array.from({ length: 5 }).map((_, s) => (
+                          <span key={s} className={s < (t.rating||5) ? 'text-yellow-400' : 'text-gray-300'}>★</span>
+                        ))}
+                      </div>
+                      <p className="mt-3 text-gray-700 leading-relaxed">
+                        <span className="text-emerald-500 mr-1 text-xl align-top">❝</span>
+                        {t.text}
+                        <span className="text-emerald-500 ml-1 text-xl align-top">❞</span>
+                      </p>
+                    </div>
+                  </div>
+                </RevealOnScroll>
+              ))}
+            </div>
+          </div>
+          <div className="mt-8 flex flex-col items-center gap-3">
+            <div className="text-sm text-gray-600">
+              <span className="font-semibold text-emerald-700">10,000+ </span>Patients Served • <span className="font-semibold text-emerald-700">100% </span>Accurate Reports • NABL-grade Quality
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Special Offers */
-      }
+      {/* Special Offers */}
       <section className="py-16 px-6 bg-orange-50">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-8">
@@ -305,7 +503,7 @@ export default function Home() {
 
           {/* Dynamic Discount Banner */}
           <div className="mb-6 rounded-xl bg-emerald-600 text-white px-5 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="text-base font-semibold">Flat 20% off on Full Body Checkup till Oct 31.</div>
+            <div className="text-base font-semibold">Flat 60% off on Full Body Checkup till Oct 31.</div>
             <Link href="/offers/full-body-checkup" className="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 px-4 py-2 rounded-lg">
               View Offer →
             </Link>
@@ -316,7 +514,12 @@ export default function Home() {
               <RevealOnScroll key={o.slug} delay={i * 80}>
                 <Link href={`/offers/${o.slug}`} className="relative rounded-2xl bg-white shadow-sm border border-gray-200 p-6 flex flex-col hover:shadow-md transition-transform hover:-translate-y-0.5">
                   {o.slug === "full-body-checkup" && (
-                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-md shadow">20% OFF</span>
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-md shadow">60% OFF</span>
+                  )}
+                  {o.poster && (
+                    <div className="mb-4 overflow-hidden rounded-lg border border-gray-200">
+                      <Image src={o.poster} alt={`${o.title} Poster`} width={600} height={360} className="w-full h-36 object-cover" />
+                    </div>
                   )}
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-gray-900">{o.title}</h3>
@@ -328,6 +531,15 @@ export default function Home() {
                     <span className="text-2xl font-bold text-emerald-700">₹{o.price}</span>
                     <span className="text-sm line-through text-gray-400">₹{o.mrp}</span>
                   </div>
+                  {((o.posterServices && o.posterServices.length) || (o.tests && o.tests.length)) && (
+                    <div className="mt-4">
+                      <ul className="text-sm text-gray-700 list-disc pl-5 space-y-1">
+                        {((o.posterServices && o.posterServices.length ? o.posterServices : o.tests) || []).slice(0, 3).map((t) => (
+                          <li key={t}>{t}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   <div className="mt-6">
                     <span className="inline-flex items-center justify-center w-full px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold">
                       View Details
@@ -342,61 +554,185 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Most Popular Tests */}
+      <section className="py-16 px-6 bg-white">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-3xl font-bold text-gray-900 mb-8">Most Popular Tests</h2>
+          {(() => {
+            const cards: PopularCard[] = popularTests.slice().reverse().map((t) => {
+              const d = testsBySlug[t.slug];
+              return {
+                title: t.title,
+                price: t.price,
+                obs: typeof d?.observationsCount === 'number' ? d.observationsCount : t.obs,
+                hours: typeof d?.tatHours === 'number' ? d.tatHours : t.hours,
+                imageUrl: d?.bannerUrl || t.imageUrl,
+                slug: t.slug,
+              };
+            });
+            return (
+              <div ref={popularScrollRef} className="flex gap-0 sm:gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory md:snap-none scroll-smooth touch-scrolling pb-2 -mx-4 px-4" aria-label="Popular tests carousel">
+                {[...cards, ...cards, ...cards].map((t, i) => (
+              <div key={`${t.slug}-${i}`} data-card className="snap-center shrink-0 w-[calc(100vw-2rem)] sm:w-[280px] rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-sm flex flex-col">
+                {/* Media/banner */}
+                {t.imageUrl ? (
+                  <div className="h-32 relative">
+                    <Image src={t.imageUrl} alt={t.title} fill className="object-cover" />
+                  </div>
+                ) : (
+                  <div className="h-32 bg-gradient-to-r from-emerald-600 to-green-600" />
+                )}
+                <div className="p-4 flex-1 flex flex-col">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-extrabold tracking-wide text-gray-900 uppercase leading-5 max-w-[75%]">{t.title}</h3>
+                    {typeof t.price !== 'undefined' && (
+                      <span className="text-sm font-semibold text-white bg-emerald-700 px-2 py-1 rounded-lg">₹{t.price}</span>
+                    )}
+                  </div>
+                  {/* Mini details pulled from testsBySlug */}
+                  {(() => {
+                    const d = testsBySlug[t.slug];
+                    return (
+                      <div className="mt-3 grid grid-cols-1 gap-2 text-sm">
+                        <div className="inline-flex items-center gap-2 text-gray-700"><span className="h-6 w-6 inline-flex items-center justify-center rounded-full bg-emerald-100 text-emerald-700">🧫</span>Sample: {d?.sampleRequired || '—'}</div>
+                        <div className="inline-flex items-center gap-2 text-gray-700"><span className="h-6 w-6 inline-flex items-center justify-center rounded-full bg-emerald-100 text-emerald-700">📋</span>Prep: {d?.preparation || '—'}</div>
+                        {typeof t.obs !== 'undefined' && (
+                          <div className="inline-flex items-center gap-2 text-gray-700"><span className="h-6 w-6 inline-flex items-center justify-center rounded-full bg-emerald-100 text-emerald-700">📄</span>{t.obs} Observations included</div>
+                        )}
+                        {typeof t.hours !== 'undefined' && (
+                          <div className="inline-flex items-center gap-2 text-gray-700"><span className="h-6 w-6 inline-flex items-center justify-center rounded-full bg-emerald-100 text-emerald-700">⏱️</span>Results in {t.hours} Hours</div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <Link href={`/tests/${t.slug}`} className="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50">View Details</Link>
+                    <Link href={`/tests/${t.slug}`} className="inline-flex items-center justify-center px-3 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-green-600 text-white">Add to Cart</Link>
+                  </div>
+                </div>
+              </div>
+                ))}
+              </div>
+            );
+          })()}
+          <div className="mt-8 flex justify-center">
+            <Link href="/services" className="inline-flex items-center gap-2 px-6 py-2 rounded-full bg-gradient-to-r from-emerald-600 to-green-600 text-white font-semibold">View All Test</Link>
+          </div>
+        </div>
+      </section>
+
       {/* Lab Finder */}
-      <section className="py-14 px-6 bg-white">
-        <div className="max-w-5xl mx-auto">
-          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <h2 className="text-3xl font-bold text-gray-900">Find Nearest Lab</h2>
-            <div className="flex gap-2">
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by area or branch"
-                className="w-64 max-w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-              <button
-                onClick={findNearest}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700"
-              >
-                Use My Location
+      <section className="py-16 px-6 bg-gradient-to-b from-white via-emerald-50 to-blue-50">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-8 text-center">
+            <h2 className="text-3xl font-extrabold text-gray-900">Find Nearest Lab</h2>
+            <p className="text-gray-600 mt-2">Quickly locate your nearest Impulse Pathology branch and connect with us instantly.</p>
+          </div>
+          <div className="mb-4 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-center">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by area or branch"
+              className="w-full sm:w-[420px] rounded-xl border border-emerald-200/70 bg-white px-4 py-2.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <button
+              onClick={findNearest}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold shadow hover:bg-emerald-700 transition-colors"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z"/>
+                <circle cx="12" cy="11" r="2"/>
+              </svg>
+              Use My Location
+            </button>
+          </div>
+          {/* Filters and View Toggle */}
+          <div className="mb-6 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+            <div className="flex gap-3 sm:justify-start justify-center">
+              <select value={filterCity} onChange={(e)=>setFilterCity(e.target.value)} className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm shadow-sm">
+                <option value="">All Areas</option>
+                {Array.from(new Set(results.map((b:any)=>b.area))).map((a:any)=> (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex justify-center sm:justify-end">
+              <button onClick={()=>setShowMapView(v=>!v)} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-emerald-200 text-emerald-700 bg-white hover:bg-emerald-50 shadow-sm">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3z"/></svg>
+                {showMapView ? 'Hide Map View' : 'Switch to Map View'}
               </button>
             </div>
           </div>
           {locError && (
-            <div className="mb-4 rounded-md bg-red-50 text-red-700 px-4 py-2">{locError}</div>
+            <div className="mb-4 rounded-md bg-red-50 text-red-700 px-4 py-2 max-w-2xl mx-auto text-center">{locError}</div>
           )}
-          <div className="grid sm:grid-cols-3 gap-4">
-            {results.map((b) => (
-              <div key={b.id} className="rounded-xl border border-gray-200 p-5 bg-white shadow-sm">
-                <div className="text-lg font-semibold text-gray-900">{b.name}</div>
-                <div className="text-sm text-gray-600">{b.area}</div>
-                {Number.isFinite(b.distKm) && (
-                  <div className="mt-1 text-sm text-emerald-700 font-medium">{b.distKm.toFixed(1)} km away</div>
+          {(() => {
+            const items = results.filter((b:any)=> !filterCity || b.area===filterCity);
+            // Determine nearest by minimum distKm
+            const nearest = items.reduce((acc:any,b:any)=> (Number.isFinite(b.distKm) && (acc==null || b.distKm < acc.distKm)) ? b : acc, null);
+            const active = items.find((b:any)=> b.id===activeLabId) || nearest || items[0];
+            return (
+              <>
+                {/* Map View */}
+                {showMapView && active && (
+                  <div className="mb-6 overflow-hidden rounded-xl ring-1 ring-emerald-100">
+                    <iframe title={`Map of ${active.name}`} src={`https://www.google.com/maps?q=${active.lat},${active.lng}&z=14&output=embed`} loading="lazy" className="w-full h-72 border-0" />
+                  </div>
                 )}
-                <div className="mt-3 overflow-hidden rounded-md">
-                  <iframe
-                    title={`${b.name} map`}
-                    src={`https://www.google.com/maps?q=${b.lat},${b.lng}&z=15&output=embed`}
-                    loading="lazy"
-                    className="w-full h-28 border-0"
-                  />
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                  {items.map((b:any, i:number) => (
+                    <RevealOnScroll key={b.id} delay={i * 80}>
+                      <div onMouseEnter={()=>setActiveLabId(b.id)} className={`rounded-2xl border p-5 bg-white shadow-sm hover:shadow-lg transition-all hover:-translate-y-0.5 ${nearest && b.id===nearest.id ? 'border-emerald-400 ring-2 ring-emerald-100' : 'border-emerald-100'}`}>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="text-lg font-semibold text-gray-900">{b.name}</div>
+                            <div className="text-sm text-gray-600">{b.area}</div>
+                            <div className="mt-1 text-xs text-amber-600">⭐ 4.8/5</div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            {nearest && b.id===nearest.id && (
+                              <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium border border-emerald-100">Nearest to You</span>
+                            )}
+                            {Number.isFinite(b.distKm) && (
+                              <div className="text-xs px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 font-medium border border-emerald-100">{b.distKm.toFixed(1)} km</div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-3 overflow-hidden rounded-lg ring-1 ring-emerald-100/70">
+                          <iframe
+                            title={`${b.name} map`}
+                            src={`https://www.google.com/maps?q=${b.lat},${b.lng}&z=15&output=embed`}
+                            loading="lazy"
+                            className="w-full h-32 border-0"
+                          />
+                        </div>
+                        <div className="mt-4 flex items-center gap-2">
+                          <a href={`https://www.google.com/maps?q=${b.lat},${b.lng}`} target="_blank" className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 21s7-4.35 7-10a7 7 0 1 0-14 0c0 5.65 7 10 7 10Z"/><circle cx="12" cy="11" r="2"/></svg>
+                            Open in Maps
+                          </a>
+                          {b.phone && (
+                            <a href={`tel:${b.phone}`} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-green-600 text-white hover:from-emerald-700 hover:to-green-700">
+                              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.11 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.86.31 1.7.57 2.5a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.58-1.14a2 2 0 0 1 2.11-.45c.8.26 1.64.45 2.5.57A2 2 0 0 1 22 16.92Z"/></svg>
+                              Call
+                            </a>
+                          )}
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">✅ NABL Certified</span>
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100">🧬 ISO Approved</span>
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 text-gray-700 border border-gray-200">🧑‍⚕️ 24x7 Support</span>
+                        </div>
+                      </div>
+                    </RevealOnScroll>
+                  ))}
                 </div>
-                <div className="mt-4 flex items-center gap-2">
-                  <a href={`https://www.google.com/maps?q=${b.lat},${b.lng}`} target="_blank" className="inline-flex items-center px-3 py-2 rounded-md border border-gray-300 text-gray-800 hover:bg-gray-50">
-                    Open in Maps
-                  </a>
-                  {b.phone && (
-                    <a href={`tel:${b.phone}`} className="inline-flex items-center px-3 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700">
-                      Call
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-          {!nearby && results.length === 0 && (
-            <p className="text-gray-600 mt-3">No branches match your search.</p>
-          )}
+                {!nearby && items.length === 0 && (
+                  <p className="text-gray-600 mt-4 text-center">No branches match your search.</p>
+                )}
+              </>
+            );
+          })()}
         </div>
       </section>
 
