@@ -20,6 +20,14 @@ export default function Navbar() {
   const userEmail = (typeof email === "string" ? email : "").toLowerCase();
   const isAdmin = !!userEmail && ((allowedDomain && userEmail.endsWith(`@${allowedDomain}`)) || (allowedEmails.length > 0 && allowedEmails.includes(userEmail)));
   const [profileOpen, setProfileOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setIsScrolled(window.scrollY > 12);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -39,143 +47,157 @@ export default function Navbar() {
   }, [user]);
 
   return (
-    <header className="sticky top-0 z-50 bg-gradient-to-r from-emerald-600 to-green-600 text-white shadow-md">
-      <div className="container mx-auto flex gap-4 items-center p-3 sm:p-4">
-        <h1 className="text-xl font-bold">
-          <Link href="/" className="flex items-center gap-2">
-            <Image src="/icons/logo.jpg" alt="Impulse Lab logo" width={50} height={50} priority className="rounded-md" />
-            <span>Impulse Lab</span>
-          </Link>
-        </h1>
-        {/* Mobile menu button */}
-        <button
-          className="ml-auto md:hidden inline-flex items-center justify-center rounded-md px-4 py-3 min-h-[44px] bg-white/20 hover:bg-white/30 text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-          aria-label="Toggle menu"
-          aria-controls="primary-mobile-menu"
-          aria-expanded={mobileOpen}
-          onClick={() => setMobileOpen((v) => !v)}
-        >
-          {mobileOpen ? "Close" : "Menu"}
-        </button>
-
-        <nav className="ml-auto hidden md:block">
-          <ul className="flex items-center gap-6">
-            <li className="hidden md:block">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const qRaw = query.trim();
-                  if (!qRaw) {
-                    router.push("/services");
-                    return;
-                  }
-                  const q = qRaw.toLowerCase();
-                  const services = Object.values(serviceData);
-                  const exactTitle = services.find((s) => s.title.toLowerCase() === q);
-                  if (exactTitle) {
-                    router.push(`/services/${exactTitle.slug}`);
-                    return;
-                  }
-                  const exactSub = services.find((s) => s.subTests.some((t) => t.name.toLowerCase() === q));
-                  if (exactSub) {
-                    router.push(`/services/${exactSub.slug}`);
-                    return;
-                  }
-                  const partialTitle = services.find((s) => s.title.toLowerCase().includes(q));
-                  if (partialTitle) {
-                    router.push(`/services/${partialTitle.slug}`);
-                    return;
-                  }
-                  const partialSub = services.find((s) => s.subTests.some((t) => t.name.toLowerCase().includes(q)));
-                  if (partialSub) {
-                    router.push(`/services/${partialSub.slug}`);
-                    return;
-                  }
-                  router.push(`/services?search=${encodeURIComponent(qRaw)}`);
-                }}
-                className="flex items-center max-w-2xl"
-              >
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search tests, health checkups..."
-                  className="w-72 lg:w-[28rem] px-4 py-2 rounded-md text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white/60"
-                />
-                <button
-                  type="submit"
-                  className="ml-2 px-4 py-2 rounded-md bg-white text-emerald-700 font-medium hover:bg-white/90 min-h-[44px]"
-                >
-                  Search
-                </button>
-              </form>
-            </li>
-            <li><Link href="/">Home</Link></li>
-            <li><Link href="/services">Our Services</Link></li>
-            
-            <li><Link href="/about">About</Link></li>
-            <li><Link href="/contact">Contact</Link></li>
-            {!displayName ? (
-              <>
+    <header
+      className={
+        `fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-md text-gray-800 border-b border-gray-100 shadow-sm overflow-visible`
+      }
+    >
+      <div className="max-w-7xl mx-auto px-4">
+        <div className="h-16 flex items-center gap-4">
+          <h1 className={`text-xl font-bold text-[#0b2545]`}>
+            <Link href="/" className="flex items-center gap-2 hover:opacity-95">
+              <Image src="/icons/logo.jpg" alt="Impulse Lab logo" width={48} height={48} priority className="rounded-md" />
+              <span className="hidden sm:inline">Impulse Lab</span>
+            </Link>
+          </h1>
+          {/* Desktop search (center) */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const qRaw = query.trim();
+              if (!qRaw) {
+                router.push("/services");
+                return;
+              }
+              const q = qRaw.toLowerCase();
+              const services = Object.values(serviceData);
+              const exactTitle = services.find((s) => s.title.toLowerCase() === q);
+              if (exactTitle) {
+                router.push(`/services/${exactTitle.slug}`);
+                return;
+              }
+              const exactSub = services.find((s) => s.subTests.some((t) => t.name.toLowerCase() === q));
+              if (exactSub) {
+                router.push(`/services/${exactSub.slug}`);
+                return;
+              }
+              const partialTitle = services.find((s) => s.title.toLowerCase().includes(q));
+              if (partialTitle) {
+                router.push(`/services/${partialTitle.slug}`);
+                return;
+              }
+              const partialSub = services.find((s) => s.subTests.some((t) => t.name.toLowerCase().includes(q)));
+              if (partialSub) {
+                router.push(`/services/${partialSub.slug}`);
+                return;
+              }
+              router.push(`/services?search=${encodeURIComponent(qRaw)}`);
+            }}
+            className="hidden md:flex items-center mx-auto flex-1 max-w-xl"
+          >
+            <div className="relative w-full">
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search tests, health checkups..."
+                className={`w-full pl-10 pr-4 py-2.5 rounded-full border border-gray-200 bg-white text-gray-900 placeholder-gray-500 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#00A37A]`}
+              />
+              <span className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#2c7be5]`}>🔎</span>
+            </div>
+          </form>
+          {/* Right nav */}
+          <nav className="ml-auto hidden md:block">
+            <ul className={`flex items-center gap-6 text-gray-800`}>
+              {[
+                { href: '/', label: 'Home' },
+                { href: '/services', label: 'Services' },
+                { href: '/about', label: 'About' },
+                { href: '/contact', label: 'Contact' },
+              ].map(({href,label}) => (
+                <li key={href}>
+                  <Link
+                    href={href}
+                    className={`relative group transition-colors hover:text-[#2c7be5]`}
+                  >
+                    {label}
+                    <span className={`absolute left-0 -bottom-0.5 h-0.5 w-0 transition-all duration-300 bg-[#2c7be5] group-hover:w-full`}></span>
+                  </Link>
+                </li>
+              ))}
+              {!displayName ? (
                 <li>
-                  <Link href="/auth/login" className="bg-white text-blue-600 px-3 py-2 rounded hover:bg-blue-100 transition min-h-[44px] inline-flex items-center">
+                  <Link href="/auth/login" className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-[#00C29A] to-[#009B72] text-white shadow hover:shadow-md transition-all">
                     Login
                   </Link>
                 </li>
-              </>
-            ) : (
-              <li className="relative">
-                <button
-                  onClick={() => setProfileOpen((v) => !v)}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-700 to-green-700 text-white font-semibold uppercase tracking-wide shadow hover:from-emerald-600 hover:to-green-600 min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-                  aria-haspopup="menu"
-                  aria-expanded={profileOpen}
-                >
-                  <span className="truncate max-w-[10rem]">{displayName}</span>
-                  <span className="text-white/90">▾</span>
-                </button>
-                {profileOpen && (
-                  <div className="absolute right-0 mt-2 w-72 rounded-xl bg-white text-gray-800 shadow-xl border border-emerald-100 overflow-hidden" role="menu">
-                    <div className="p-4 bg-emerald-50 border-b border-emerald-100">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-emerald-600 text-white flex items-center justify-center text-lg">👤</div>
-                        <div className="min-w-0">
-                          <div className="font-semibold text-emerald-900 truncate">{displayName}</div>
-                          <div className="text-xs text-emerald-700/80 truncate">Signed in</div>
+              ) : (
+                <li className="relative">
+                  <button
+                    onClick={() => setProfileOpen((v) => !v)}
+                    className={`relative z-[60] inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#009972] hover:bg-[#008262] text-white font-semibold shadow min-h-[40px] border border-white/60 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#77d6bf]`}
+                    aria-haspopup="menu"
+                    aria-expanded={profileOpen}
+                  >
+                    <span className="truncate max-w-[10rem]">{displayName}</span>
+                    <span className="text-white/90">▾</span>
+                  </button>
+                  {profileOpen && (
+                    <div className="absolute right-0 mt-2 w-72 rounded-xl bg-white text-gray-800 shadow-xl border border-emerald-100 overflow-hidden z-[70]" role="menu">
+                      <div className="p-4 bg-emerald-50 border-b border-emerald-100">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-emerald-600 text-white flex items-center justify-center text-lg">👤</div>
+                          <div className="min-w-0">
+                            <div className="font-semibold text-emerald-900 truncate">{displayName}</div>
+                            <div className="text-xs text-emerald-700/80 truncate">Signed in</div>
+                          </div>
                         </div>
                       </div>
+                      <div className="p-2" role="menu">
+                        <Link href="/upload-prescription" role="menuitem" className="relative z-10 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>🧾 <span>My Prescriptions</span></Link>
+                        <Link href="/services" role="menuitem" className="relative z-10 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>🗓️ <span>My Booking</span></Link>
+                        <Link href="/account?tab=reports" role="menuitem" className="relative z-10 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>📁 <span>My Report</span></Link>
+                        <Link href="/account?tab=address" role="menuitem" className="relative z-10 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>📍 <span>My Address</span></Link>
+                        <Link href="/account?tab=membership" role="menuitem" className="relative z-10 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>💳 <span>My Membership Cards</span></Link>
+                        <Link href="/account?tab=family" role="menuitem" className="relative z-10 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>👥 <span>My Family Members</span></Link>
+                        <Link href="/account" role="menuitem" className="relative z-10 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>👤 <span>My Profile</span></Link>
+                        <Link href="/account?tab=notifications" role="menuitem" className="relative z-10 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>🔔 <span>My Notification</span></Link>
+                        {isAdmin && (
+                          <>
+                            <div className="my-1 border-t border-gray-200" />
+                            <Link href="/admin/prescriptions" role="menuitem" className="relative z-10 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>🛡️ <span>Admin</span></Link>
+                          </>
+                        )}
+                        <button
+                          onClick={() => { setProfileOpen(false); logout(); }}
+                          className="mt-1 w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100 text-left"
+                        >
+                          🚪 <span>Logout</span>
+                        </button>
+                      </div>
                     </div>
-                    <div className="p-2">
-                      <Link href="/upload-prescription" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>🧾 <span>My Prescriptions</span></Link>
-                      <Link href="/services" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>🗓️ <span>My Booking</span></Link>
-                      <Link href="/account?tab=reports" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>📁 <span>My Report</span></Link>
-                      <Link href="/account?tab=address" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>📍 <span>My Address</span></Link>
-                      <Link href="/account?tab=membership" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>💳 <span>My Membership Cards</span></Link>
-                      <Link href="/account?tab=family" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>👥 <span>My Family Members</span></Link>
-                      <Link href="/account" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>👤 <span>My Profile</span></Link>
-                      <Link href="/account?tab=notifications" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>🔔 <span>My Notification</span></Link>
-                      {isAdmin && (
-                        <Link href="/admin/prescriptions" className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100" onClick={() => setProfileOpen(false)}>🛡️ <span>Admin</span></Link>
-                      )}
-                      <button
-                        onClick={() => { setProfileOpen(false); logout(); }}
-                        className="mt-1 w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100 text-left"
-                      >
-                        🚪 <span>Logout</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </li>
-            )}
-          </ul>
-        </nav>
+                  )}
+                </li>
+              )}
+            </ul>
+          </nav>
+          {/* Mobile menu button */}
+          <button
+            className={`ml-auto md:hidden inline-flex items-center justify-center rounded-md px-4 py-2.5 min-h-[40px] ${isScrolled ? 'bg-[#009B72] hover:bg-[#008662]' : 'bg-white/20 hover:bg-white/30'} text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#77d6bf]`}
+            aria-label="Toggle menu"
+            aria-controls="primary-mobile-menu"
+            aria-expanded={mobileOpen}
+            onClick={() => setMobileOpen((v) => !v)}
+          >
+            {mobileOpen ? "Close" : "Menu"}
+          </button>
+        </div>
       </div>
 
       {/* Mobile dropdown */}
       {mobileOpen && (
-        <div id="primary-mobile-menu" className="md:hidden border-t border-white/20 bg-gradient-to-r from-emerald-600 to-green-600">
-          <div className="container mx-auto p-4 flex flex-col gap-4">
+        <div id="primary-mobile-menu" className="md:hidden border-t border-gray-100 bg-white shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-4">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -221,32 +243,30 @@ export default function Navbar() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search tests, health checkups..."
-                className="flex-1 px-4 py-3 rounded-md text-gray-900 placeholder-gray-600 focus:outline-none"
+                className="flex-1 px-4 py-3 rounded-full border border-gray-200 text-gray-900 placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#009B72] shadow-sm"
               />
-              <button type="submit" className="ml-2 px-4 py-3 rounded-md bg-white text-emerald-700 min-h-[44px]">
+              <button type="submit" className="ml-2 px-4 py-3 rounded-full bg-gradient-to-r from-[#00C29A] to-[#009B72] text-white shadow hover:shadow-md min-h-[44px]">
                 Search
               </button>
             </form>
             <div className="flex flex-col gap-3">
-              <Link href="/" onClick={() => setMobileOpen(false)} className="py-2">Home</Link>
-              <Link href="/services" onClick={() => setMobileOpen(false)} className="py-2">Our Services</Link>
-              
-              <Link href="/about" onClick={() => setMobileOpen(false)} className="py-2">About</Link>
-              <Link href="/contact" onClick={() => setMobileOpen(false)} className="py-2">Contact</Link>
+              <Link href="/" onClick={() => setMobileOpen(false)} className="py-2 text-[#333] hover:text-[#009B72] transition-colors">Home</Link>
+              <Link href="/services" onClick={() => setMobileOpen(false)} className="py-2 text-[#333] hover:text-[#009B72] transition-colors">Services</Link>
+              <Link href="/about" onClick={() => setMobileOpen(false)} className="py-2 text-[#333] hover:text-[#009B72] transition-colors">About</Link>
+              <Link href="/contact" onClick={() => setMobileOpen(false)} className="py-2 text-[#333] hover:text-[#009B72] transition-colors">Contact</Link>
               {isAdmin && (
-                <Link href="/admin/prescriptions" onClick={() => setMobileOpen(false)} className="px-3 py-3 rounded border border-white/70 text-white text-center">
+                <Link href="/admin/prescriptions" onClick={() => setMobileOpen(false)} className="px-3 py-3 rounded border border-gray-200 text-[#333] text-center">
                   Admin
                 </Link>
               )}
               {!displayName ? (
-                <Link href="/auth/login" className="bg-white text-blue-600 px-3 py-3 rounded text-center" onClick={() => setMobileOpen(false)}>
+                <Link href="/auth/login" className="bg-gradient-to-r from-[#00C29A] to-[#009B72] text-white px-3 py-3 rounded-full text-center shadow hover:shadow-md" onClick={() => setMobileOpen(false)}>
                   Login
                 </Link>
               ) : (
                 <button
                   onClick={() => { logout(); setMobileOpen(false); }}
-                  className="bg-red-500 px-3 py-3 rounded text-white"
-                >
+                  className="bg-red-500 px-3 py-3 rounded-full text-white">
                   Logout
                 </button>
               )}
